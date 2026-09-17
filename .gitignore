@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.pem
+*.key
+.lab-managed/
+evidence/runtime/
+# Commit .terraform.lock.hcl after terraform init; it is not a secret.

@@ -1,0 +1,110 @@
+name: multicloud-lab
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: multicloud-lab-api:local
+    ports:
+    - 127.0.0.1:8080:8080
+    environment:
+      APP_ENV: compose
+      ENABLE_FAULTS: ${ENABLE_FAULTS:-false}
+      LOG_DIR: /var/log/lab
+    volumes:
+    - app-logs:/var/log/lab
+    read_only: true
+    tmpfs:
+    - /tmp
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    mem_limit: 256m
+    cpus: 0.5
+    restart: unless-stopped
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports:
+    - 127.0.0.1:9090:9090
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    - --storage.tsdb.path=/prometheus
+    - --storage.tsdb.retention.time=24h
+    volumes:
+    - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    - prometheus-data:/prometheus
+    mem_limit: 512m
+    restart: unless-stopped
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    ports:
+    - 127.0.0.1:9093:9093
+    command:
+    - --config.file=/etc/alertmanager/alertmanager.yml
+    - --storage.path=/alertmanager
+    volumes:
+    - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    - alertmanager-data:/alertmanager
+    mem_limit: 128m
+    restart: unless-stopped
+  loki:
+    image: grafana/loki:3.5.5
+    command:
+    - -config.file=/etc/loki/config.yml
+    volumes:
+    - ./observability/loki/config.yml:/etc/loki/config.yml:ro
+    - loki-data:/loki
+    mem_limit: 512m
+    restart: unless-stopped
+  alloy:
+    image: grafana/alloy:v1.10.2
+    command:
+    - run
+    - --storage.path=/var/lib/alloy
+    - /etc/alloy/config.alloy
+    volumes:
+    - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+    - app-logs:/var/log/lab:ro
+    - alloy-data:/var/lib/alloy
+    depends_on:
+    - loki
+    environment:
+      HOSTNAME: compose-api
+    mem_limit: 256m
+    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:12.1.1
+    ports:
+    - 127.0.0.1:3000:3000
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+    volumes:
+    - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    - grafana-data:/var/lib/grafana
+    depends_on:
+    - prometheus
+    - loki
+    mem_limit: 384m
+    restart: unless-stopped
+volumes:
+  app-logs: {}
+  prometheus-data: {}
+  alertmanager-data: {}
+  loki-data: {}
+  alloy-data: {}
+  grafana-data: {}

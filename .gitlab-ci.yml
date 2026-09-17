@@ -1,0 +1,52 @@
+stages:
+- validate
+- integrate
+quality:
+  stage: validate
+  image: python:3.12-slim
+  script:
+  - pip install -r requirements-dev.txt
+  - python -m unittest discover -s tests -v
+  - python scripts/check_config.py
+  - cfn-lint cloudformation/aws/template.yaml
+  - ansible-playbook -i ansible/inventory.ini ansible/playbook.yml --syntax-check
+terraform:
+  stage: validate
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint:
+    - ''
+  parallel:
+    matrix:
+    - CLOUD:
+      - azure
+      - oci
+  script:
+  - terraform fmt -check -recursive terraform
+  - cd terraform/$CLOUD
+  - terraform init -backend=false -input=false
+  - terraform validate
+compose:
+  stage: integrate
+  image: docker:28.0.1-cli
+  services:
+  - name: docker:28.0.1-dind
+    alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: /certs
+    DOCKER_TLS_VERIFY: '1'
+    DOCKER_CERT_PATH: /certs/client
+    API_URL: http://docker:8080
+    PROMETHEUS_URL: http://docker:9090
+    GRAFANA_URL: http://docker:3000
+  before_script:
+  - apk add --no-cache python3 bash
+  - python3 scripts/prepare_env.py
+  script:
+  - docker compose -f compose.yaml -f ci/compose.gitlab.yaml config --quiet
+  - docker compose -f compose.yaml -f ci/compose.gitlab.yaml up -d --build
+  - python3 scripts/smoke.py
+  after_script:
+  - docker compose -f compose.yaml -f ci/compose.gitlab.yaml logs --no-color
+  - docker compose -f compose.yaml -f ci/compose.gitlab.yaml down -v

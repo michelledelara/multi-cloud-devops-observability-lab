@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Private AWS network foundation and CloudWatch observability for the multi-cloud lab
+Parameters:
+  ProjectName:
+    Type: String
+    Default: multicloud-lab
+    AllowedPattern: '[a-z][a-z0-9-]{2,24}'
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.10.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Sub: ${ProjectName}-vpc
+  AppSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: Vpc
+      CidrBlock: 10.10.1.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Sub: ${ProjectName}-app
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: API ingress inside lab VPC only
+      VpcId:
+        Ref: Vpc
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 8080
+        ToPort: 8080
+        CidrIp: 10.10.0.0/16
+      SecurityGroupEgress:
+      - IpProtocol: '-1'
+        CidrIp: 10.10.0.0/16
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: /${ProjectName}/api
+      RetentionInDays: 7
+  ErrorMetric:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName:
+        Ref: ApiLogGroup
+      FilterPattern: '{ $.status >= 500 }'
+      MetricTransformations:
+      - MetricNamespace:
+          Fn::Sub: ${ProjectName}/API
+        MetricName: ServerErrors
+        MetricValue: '1'
+        DefaultValue: 0
+        Unit: Count
+  ErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: At least five server errors in each of two one-minute periods
+      Namespace:
+        Fn::Sub: ${ProjectName}/API
+      MetricName: ServerErrors
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName:
+        Fn::Sub: ${ProjectName}-api
+      DashboardBody:
+        Fn::Sub: '{"widgets": [{"type": "metric", "x": 0, "y": 0, "width": 12, "height": 6, "properties": {"title":
+          "API server errors", "region": "${AWS::Region}", "metrics": [["${ProjectName}/API", "ServerErrors"]],
+          "stat": "Sum", "period": 60}}]}'
+Outputs:
+  VpcId:
+    Value:
+      Ref: Vpc
+  SubnetId:
+    Value:
+      Ref: AppSubnet
+  LogGroupName:
+    Value:
+      Ref: ApiLogGroup
+  AlarmName:
+    Value:
+      Ref: ErrorAlarm

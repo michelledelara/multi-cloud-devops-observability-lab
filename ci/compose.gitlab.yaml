@@ -1,0 +1,10 @@
+services:
+  api:
+    ports: !override
+      - "8080:8080"
+  prometheus:
+    ports: !override
+      - "9090:9090"
+  grafana:
+    ports: !override
+      - "3000:3000"

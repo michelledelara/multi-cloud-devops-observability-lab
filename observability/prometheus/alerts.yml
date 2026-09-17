@@ -1,0 +1,37 @@
+groups:
+- name: lab-api
+  rules:
+  - alert: ApiTargetDown
+    expr: up{job="lab-api"} == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: API target is unavailable
+      runbook: docs/runbooks.md#api-unavailable
+  - alert: ApiTargetsMissing
+    expr: absent(up{job="lab-api"})
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: No API targets discovered
+      runbook: docs/runbooks.md#api-unavailable
+  - alert: HighErrorRate
+    expr: ((sum(rate(lab_http_requests_total{job="lab-api",status=~"5.."}[2m])) or vector(0)) / clamp_min(sum(rate(lab_http_requests_total{job="lab-api"}[2m])),
+      0.001) > 0.05) and (sum(rate(lab_http_requests_total{job="lab-api"}[2m])) > 0.1)
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: More than 5 percent of requests return 5xx
+      runbook: docs/runbooks.md#high-error-rate
+  - alert: HighLatency
+    expr: (histogram_quantile(0.95, sum by (le) (rate(lab_http_request_duration_seconds_bucket{job="lab-api"}[2m])))
+      > 0.5) and (sum(rate(lab_http_requests_total{job="lab-api"}[2m])) > 0.1)
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: p95 latency exceeds 500 ms
+      runbook: docs/runbooks.md#high-latency

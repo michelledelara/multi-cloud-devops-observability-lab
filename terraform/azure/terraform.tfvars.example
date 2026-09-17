@@ -1,0 +1,3 @@
+subscription_id = "REPLACE_WITH_SUBSCRIPTION_ID"
+location        = "brazilsouth"
+project         = "multicloud-lab"

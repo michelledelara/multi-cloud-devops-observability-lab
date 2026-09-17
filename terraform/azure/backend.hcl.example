@@ -1,0 +1,6 @@
+# Existing backend resources, provisioned separately. No credentials here.
+resource_group_name  = "rg-terraform-state"
+storage_account_name = "REPLACE_WITH_UNIQUE_ACCOUNT"
+container_name       = "tfstate"
+key                  = "multicloud-lab/azure.tfstate"
+use_azuread_auth     = true

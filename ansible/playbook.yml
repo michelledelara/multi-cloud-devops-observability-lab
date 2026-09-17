@@ -1,0 +1,26 @@
+- name: Configure Cloud Engineering service files
+  hosts: lab
+  gather_facts: false
+  vars:
+    lab_config_dir: '{{ playbook_dir }}/../.lab-managed'
+    lab_environment: local
+    lab_enable_faults: false
+  tasks:
+  - name: Create configuration directory
+    ansible.builtin.file:
+      path: '{{ lab_config_dir }}'
+      state: directory
+      mode: '0750'
+  - name: Render application environment
+    ansible.builtin.template:
+      src: templates/app.env.j2
+      dest: '{{ lab_config_dir }}/app.env'
+      mode: '0640'
+  - name: Render operational metadata
+    ansible.builtin.copy:
+      dest: '{{ lab_config_dir }}/metadata.json'
+      mode: '0640'
+      content: '{{ {"project": "multi-cloud-devops-observability-lab", "environment": lab_environment, "managed_by":
+        "Ansible"} | to_nice_json }}
+
+        '

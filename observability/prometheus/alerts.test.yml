@@ -1,0 +1,74 @@
+rule_files:
+- alerts.yml
+evaluation_interval: 1m
+tests:
+- name: Down target fires after persistence window
+  interval: 1m
+  input_series:
+  - series: up{job="lab-api",instance="api:8080"}
+    values: 0+0x5
+  alert_rule_test:
+  - eval_time: 2m
+    alertname: ApiTargetDown
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        job: lab-api
+        instance: api:8080
+      exp_annotations:
+        summary: API target is unavailable
+        runbook: docs/runbooks.md#api-unavailable
+- name: Sustained 10 percent error ratio fires
+  interval: 1m
+  input_series:
+  - series: lab_http_requests_total{job="lab-api",status="500"}
+    values: 0+10x10
+  - series: lab_http_requests_total{job="lab-api",status="200"}
+    values: 0+90x10
+  alert_rule_test:
+  - eval_time: 4m
+    alertname: HighErrorRate
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations:
+        summary: More than 5 percent of requests return 5xx
+        runbook: docs/runbooks.md#high-error-rate
+- name: Low volume does not create ratio alert
+  interval: 1m
+  input_series:
+  - series: lab_http_requests_total{job="lab-api",status="500"}
+    values: 0+1x10
+  alert_rule_test:
+  - eval_time: 4m
+    alertname: HighErrorRate
+    exp_alerts: []
+- name: Healthy target never fires down alert
+  interval: 1m
+  input_series:
+  - series: up{job="lab-api",instance="api:8080"}
+    values: 1+0x10
+  alert_rule_test:
+  - eval_time: 4m
+    alertname: ApiTargetDown
+    exp_alerts: []
+- name: High histogram latency fires
+  interval: 1m
+  input_series:
+  - series: lab_http_request_duration_seconds_bucket{job="lab-api",le="0.5"}
+    values: 0+0x10
+  - series: lab_http_request_duration_seconds_bucket{job="lab-api",le="1"}
+    values: 0+100x10
+  - series: lab_http_request_duration_seconds_bucket{job="lab-api",le="+Inf"}
+    values: 0+100x10
+  - series: lab_http_requests_total{job="lab-api",status="200"}
+    values: 0+100x10
+  alert_rule_test:
+  - eval_time: 5m
+    alertname: HighLatency
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations:
+        summary: p95 latency exceeds 500 ms
+        runbook: docs/runbooks.md#high-latency
