@@ -4,7 +4,7 @@
 
 A reproducible Cloud Engineering project combining independent AWS, Microsoft Azure and Oracle Cloud Infrastructure foundations with a containerized Python service and an integrated observability stack. It demonstrates how infrastructure definitions, application delivery, configuration management and operational signals fit into one version-controlled system.
 
-**Author:** Michelle Ferraz
+**Author:** Michelle de Lara Ferraz Silveira Almeida
 
 ## System design
 
