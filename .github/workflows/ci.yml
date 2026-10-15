@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - &id001
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - &id002
       uses: actions/setup-python@v5
       with:
@@ -41,7 +41,7 @@ jobs:
         - azure
         - oci
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: 1.9.8
