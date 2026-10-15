@@ -2,4 +2,4 @@
 PyYAML==6.0.2
 python-hcl2==7.3.1
 cfn-lint==1.40.2
-ansible-core==2.18.6
+ansible-core==2.21.4
